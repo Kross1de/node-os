@@ -7,12 +7,14 @@
 
 use core::panic::PanicInfo;
 use crate::interrupts::PIC_1_OFFSET;
+extern crate alloc;
 
 pub mod serial;
 pub mod vga_buffer;
 pub mod memory;
 pub mod interrupts;
 pub mod gdt;
+pub mod allocator;
 
 pub trait Testable {
     fn run(&self) -> ();
