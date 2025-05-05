@@ -10,27 +10,29 @@ use bootloader::{BootInfo, entry_point};
 
 entry_point!(kernel_main);
 
-#[unsafe(no_mangle)]
 fn kernel_main(boot_info: &'static BootInfo) -> ! {
-	use NodeOS::memory::active_level_4_table;
-    use x86_64::VirtAddr;
-    
+    use NodeOS::memory::{self, BootInfoFrameAllocator};
+    use x86_64::{VirtAddr, structures::paging::Page};
+
     println!("Hello World{}", "!");
     NodeOS::init();
 
     let phys_mem_offset = VirtAddr::new(boot_info.physical_memory_offset);
-    let l4_table = unsafe { active_level_4_table(phys_mem_offset) };
+    let mut mapper = unsafe { memory::init(phys_mem_offset) };
+    let mut frame_allocator = unsafe { BootInfoFrameAllocator::init(&boot_info.memory_map) };
 
-    for (i, entry) in l4_table.iter().enumerate() {
-        if !entry.is_unused() {
-            println!("L4 Entry {}: {:?}", i, entry);
-        }
-    }
-    
+    // map an unused page
+    let page = Page::containing_address(VirtAddr::new(0xdeadbeaf000));
+    memory::create_example_mapping(page, &mut mapper, &mut frame_allocator);
+
+    // write the string `New!` to the screen through the new mapping
+    let page_ptr: *mut u64 = page.start_address().as_mut_ptr();
+    unsafe { page_ptr.offset(400).write_volatile(0x_f021_f077_f065_f04e) };
+
     #[cfg(test)]
     test_main();
 
-    println!("Not crashed{},", "idk");
+    println!("It did not crash!");
     NodeOS::hlt_loop();
 }
 
