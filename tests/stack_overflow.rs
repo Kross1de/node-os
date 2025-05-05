@@ -1,11 +1,12 @@
 #![no_std]
 #![no_main]
-#![feature(abi_x86_interrupt)]
 
-use NodeOS::{QemuExitCode, exit_qemu, serial_print, serial_println};
 use core::panic::PanicInfo;
+use NodeOS::serial_print;
 use lazy_static::lazy_static;
-use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame};
+use x86_64::structures::idt::InterruptDescriptorTable;
+use NodeOS::{exit_qemu, QemuExitCode, serial_println};
+use x86_64::structures::idt::InterruptStackFrame;
 
 #[unsafe(no_mangle)]
 pub extern "C" fn _start() -> ! {
@@ -22,8 +23,13 @@ pub extern "C" fn _start() -> ! {
 
 #[allow(unconditional_recursion)]
 fn stack_overflow() {
-    stack_overflow(); // for each recursion, the return address is pushed
-    volatile::Volatile::new(0).read(); // prevent tail recursion optimizations
+    stack_overflow();
+    volatile::Volatile::new(0).read();
+}
+
+#[panic_handler]
+fn panic(info: &PanicInfo) -> ! {
+    NodeOS::test_panic_handler(info);
 }
 
 lazy_static! {
@@ -50,9 +56,4 @@ extern "x86-interrupt" fn test_double_fault_handler(
     serial_println!("[ok]");
     exit_qemu(QemuExitCode::Success);
     loop {}
-}
-
-#[panic_handler]
-fn panic(info: &PanicInfo) -> ! {
-    NodeOS::test_panic_handler(info)
 }
